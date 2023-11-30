@@ -1,124 +1,66 @@
 use geo::{Polygon, LineString};
+use shapefile as shp;
 use shapefile::PolygonRing::{Outer, Inner};
 
 fn to_geo_poly(polygon: shapefile::Polygon) -> Polygon {
 
-    let mut placeholder: Vec<(f64, f64)> = Vec::new();
-    for points in polygon.into_inner() {
-        for point in points.into_inner() {
-            let x = point.x;
-            let y = point.y;
-            placeholder.push((x,y))
+    let mut x: f64;
+    let mut y: f64;
+    let mut outer_placeholder: Vec<(f64,f64)> = Vec::new();
+    let mut inner_placeholder: Vec<LineString> = Vec::new();
+
+    for ring_type in polygon.rings() {
+        match ring_type {
+            Outer(o) => {
+                //Gather all outer rings
+                for point in o {
+                    x = point.x;
+                    y = point.y;
+                    outer_placeholder.push((x,y));
+                }
+            },
+            Inner(i) => {
+                //Gather all inners
+                let mut single_inner_placeholder: Vec<(f64,f64)> = Vec::new();
+                for point in i {
+                    x = point.x;
+                    y = point.y;
+                    single_inner_placeholder.push((x,y));
+                }
+                let ls = LineString::from(single_inner_placeholder);
+                inner_placeholder.push(ls);
+            },
         }
     }
-    let ext_ring = LineString::from(placeholder);
-    Polygon::new(ext_ring, vec![])
+    
+    let ext_ring = LineString::from(outer_placeholder);
+    if inner_placeholder.is_empty() {
+        Polygon::new(ext_ring, vec![])
+    } else {
+        Polygon::new(ext_ring, inner_placeholder)
+    }
 
+}
+
+fn intersects() {
 }
 
 fn main() {
 
     let filepath = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
-    let reader = shapefile::Reader::from_path(filepath);
-    if reader.is_ok() {
+    let reader = shp::Reader::from_path(filepath);
+    if shp::Reader::from_path(filepath).is_ok() {
         let mut content = reader.unwrap();
-        let shapes = content.iter_shapes_and_records_as::<shapefile::Polygon, shapefile::dbase::Record>();
+        let shapes = content.iter_shapes_and_records_as::<shp::Polygon, shp::dbase::Record>();
         for shape in shapes {
             if shape.is_ok() {
-                let (polygon, _) = shape.unwrap();
-                for ring_type in polygon.rings() {
-                    match ring_type {
-                        Outer(o) => {
-                            //Gather all outers
-                        },
-                        Inner(i) => {
-                            //Gather all inners
-                        },
-                    }
-                }
 
-                //for points in polygon.into_inner() {
-                //    let mut placeholder: Vec<(f64, f64)> = Vec::new();
-                //    for point in points.into_inner() {
-                //        let x = point.x;
-                //        let y = point.y;
-                //        placeholder.push((x,y))
-                //    }
-                //    let ext_ring = LineString::from(placeholder);
-                //    let poly = Polygon::new(ext_ring, vec![]);
-                //    //println!("{:?}", poly)
-                //}
-                //std::process::exit(0);
+                // Polygon shape only, record ignored
+                let (polygon, _) = shape.unwrap();
+                let geo_poly = to_geo_poly(polygon);
+                println!("{:?}", geo_poly)
+                
             }
         }
     }
-
-
-
-
-
-
-    // Good one
-    //let path = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
-    //let mut reader = shapefile::Reader::from_path(path).unwrap();
-    //for result in reader.iter_shapes_and_records_as::<shapefile::Polygon, shapefile::dbase::Record>() {
-    //        let (shape, _record) = result.unwrap();
-    //        for vpoints in shape.into_inner() {
-    //            let mut Ss = String::new();
-    //            for ponto in vpoints.into_inner() {
-    //                let s1: String = ponto.x.to_string();
-    //                let s2: String = ponto.y.to_string();
-    //                Ss.push_str(&s1);
-    //                Ss.push_str(",");
-    //                Ss.push_str(&s2);
-    //            }
-    //            println!("{}", Ss);
-    //            std::process::exit(0);
-    //        }
-    //    }
-
-
-
-
-
-
-
-
-
-
-    //let reader = shapefile::ShapeReader::from_path(path);
-    //if reader.is_ok() {
-    //    let content = reader.unwrap();
-    //    match content.read_as::<shapefile::Polygon>() {
-    //        Ok(shapes) => {
-    //            let mut points = shapes.first().into_iter();
-    //            for point in points {
-    //                println!("{}",point) 
-    //            }
-    //        },
-    //        Err(e) => (),
-    //    }
-    //} else {
-    //    println!("Error when unwrapping shapefile")
-    //}
-
-
-    //for shape in reader.iter_shapes() {
-    //    match shape? {
-    //        shapefile::Shape::Multipatch(shp) => println!("Multipoint!"),
-    //        _ => println!("Other type of shape"),
-    //    }
-    //}
-
-
-    //let path = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
-    //let mut reader = Reader::from_path(path).unwrap();
-    //let polygons = reader.read_as::<shapefile::Polygon, shapefile::dbase::Record>().unwrap();
-    //for (shape, record) in polygons {
-    //    println!("{}", shape);
-    //    for (name, value) in record {
-    //        println!("{}, {}", name, value)
-    //    }
-    //}
-
 }
