@@ -16,4 +16,4 @@ Cargo.lock
 # App
 *.DS_Store
 /shp
-
+.envrc
