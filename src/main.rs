@@ -125,12 +125,38 @@ fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
 
 }
 
+// To GeoJSON
+fn to_geojson(targets: Vec<geo::Polygon>) {
+
+    for target in targets.iter() {
+        let geometry = geojson::Geometry::new(geojson::Value::from(target));
+        let mut properties = geojson::JsonObject::new();
+        properties.insert(
+            String::from("name"),
+            geojson::JsonValue::from("Firestone Grill"),
+        );
+
+        let geojson = geojson::GeoJson::Feature(geojson::Feature {
+            bbox: None,
+            geometry: Some(geometry),
+            id: None,
+            properties: Some(properties),
+            foreign_members: None,
+        });
+        
+        let geojson_string = geojson.to_string();
+        println!("{:?}", geojson_string)
+
+    }
+}
+
 fn main() {
 
-    let query = read_file("src/query.sql");
+    let query = read_file("./query.sql");
     let regions = postgis_data(query);
-    let filepath = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
+    let filepath = "./shp/water_polygons.shp";
     let polygons = read_shapefile(filepath);
-    let result = intersects(polygons, regions);
+    let targets = intersects(polygons, regions);
+    to_geojson(targets)
 
 }
