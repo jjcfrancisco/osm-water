@@ -4,6 +4,7 @@ use shapefile::PolygonRing::{Outer, Inner};
 use postgres::{Client, NoTls};
 use std::env;
 use wkt;
+use std::fs;
 
 fn to_geo_poly(polygon: shapefile::Polygon) -> Polygon {
 
@@ -51,27 +52,12 @@ struct Region {
     geom: Polygon,
 }
 
-fn postgis_data() -> Vec<Region> {
-    
-    let sql = "
-    SELECT
-      map_c.project_name,
-      ST_AsText(ST_Transform(ST_MakeEnvelope
-      (
-        ST_X(map_e.min_x_min_y),
-        ST_Y(map_e.min_x_min_y),
-        ST_X(map_e.max_x_max_y),
-        ST_Y(map_e.max_x_max_y),
-        4326
-      )::geometry, 3857)) AS geom
-    FROM gis_universal_tables.map_extents AS map_e
-    LEFT JOIN gis_universal_tables.map_config map_c ON map_e.map_config_id = map_c.id
-    LEFT JOIN gis_universal_tables.map_zoom_info map_zi ON map_e.map_config_id = map_zi.map_config_id;";
+fn postgis_data(query: String) -> Vec<Region> {
     
     let pgcon = env::var("PGCON").expect("$PGCON is not set");
     let mut client = Client::connect(&pgcon, NoTls).unwrap();
     let mut regions: Vec<Region> = Vec::new();
-    for row in &client.query(sql, &[]).unwrap() {
+    for row in &client.query(&query, &[]).unwrap() {
         let wkt_geom: String = row.get("geom");
         let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
         if result.is_ok() {
@@ -99,29 +85,39 @@ fn intersects(polys:Vec<Polygon>, regions:Vec<Region>) -> Vec<Polygon> {
 
 }
 
+
 fn main() {
 
-    let regions = postgis_data();
-    //for region in regions {
-    //    println!("{:?}",region.geom);
-    //    println!();
-    //}
-
-    let mut geo_polys:Vec<Polygon> = Vec::new();
-    let filepath = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
-    let reader = shp::Reader::from_path(filepath);
-    if shp::Reader::from_path(filepath).is_ok() {
-        let mut content = reader.unwrap();
-        let shapes = content.iter_shapes_and_records_as::<shp::Polygon, shp::dbase::Record>();
-        for shape in shapes {
-            if shape.is_ok() {
-                // Polygon shape only, record ignored
-                let (polygon, _) = shape.unwrap();
-                let geo_poly = to_geo_poly(polygon);
-                geo_polys.push(geo_poly); 
-            }
+    // Too long, use map, if_else
+    let query: String;
+    let file = fs::read_to_string("src/query.sql");
+    if file.is_ok() {
+        let reader = file.unwrap();
+        let content = reader.parse();
+        if content.is_ok() {
+            query = content.unwrap();
+            // Sort out scope
+            let regions = postgis_data(query);
+            println!("{:?}", regions)
         }
     }
 
-    let result = intersects(geo_polys, regions);
+    //let regions = postgis_data(query);
+    //let mut polys:Vec<Polygon> = Vec::new();
+    //let filepath = "/Users/frankjimenez/tests/water/shp/water_polygons.shp";
+    //let reader = shp::Reader::from_path(filepath);
+    //if reader.is_ok() {
+    //    let mut content = reader.unwrap();
+    //    let shapes = content.iter_shapes_and_records_as::<shp::Polygon, shp::dbase::Record>();
+    //    for shape in shapes {
+    //        if shape.is_ok() {
+    //            // Polygon shape only, record ignored
+    //            let (polygon, _) = shape.unwrap();
+    //            let poly = to_geo_poly(polygon);
+    //            polys.push(poly); 
+    //        }
+    //    }
+    //}
+
+    //let result = intersects(polys, regions);
 }
