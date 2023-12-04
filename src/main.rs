@@ -84,6 +84,10 @@ fn intersects(polys:Vec<geo::Polygon>, targets:Vec<Feature>) -> Vec<geo::Polygon
             }
         }
     }
+
+    // Removes duplicates
+    intersects.dedup();
+
     intersects
 
 }
