@@ -1,9 +1,8 @@
 use geo::{*};
 use shapefile;
-use shapefile::PolygonRing::{Outer, Inner};
 use postgres::{Client, NoTls};
-use std::{env, fs};
 use wkt;
+use std::{env, fs};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -17,7 +16,7 @@ fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
     for ring_type in polygon.rings() {
         match ring_type {
-            Outer(o) => {
+            shapefile::PolygonRing::Outer(o) => {
                 //Gather all outer rings
                 for point in o {
                     x = point.x;
@@ -25,8 +24,8 @@ fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
                     outer_placeholder.push((x,y));
                 }
             },
-            Inner(i) => {
-                //Gather all inners
+            shapefile::PolygonRing::Inner(i) => {
+                //Gather all inner rings
                 let mut single_inner_placeholder: Vec<(f64,f64)> = Vec::new();
                 for point in i {
                     x = point.x;
@@ -56,21 +55,29 @@ struct Feature {
 
 fn postgis_data(query: String) -> Vec<Feature> {
     
-    let pgcon = env::var("PGCON").expect("$PGCON is not set");
-    let mut client = Client::connect(&pgcon, NoTls).unwrap();
-    let mut features: Vec<Feature> = Vec::new();
-    for row in &client.query(&query, &[]).unwrap() {
-        let wkt_geom: String = row.get("geom");
-        let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
-        if result.is_ok() {
-            let geom: geo::Polygon = result.unwrap();
-            features.push(Feature{
-                name: row.get("project_name"),
-                geom,
-            });
+    let result = env::var("PGCON");
+    if result.is_ok() {
+        let pgcon = result.unwrap(); 
+        let mut client = Client::connect(&pgcon, NoTls).unwrap();
+        let mut features: Vec<Feature> = Vec::new();
+        for row in &client.query(&query, &[]).unwrap() {
+            let wkt_geom: String = row.get("geom");
+            let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
+            if result.is_ok() {
+                let geom: geo::Polygon = result.unwrap();
+                features.push(Feature{
+                    name: row.get("project_name"),
+                    geom,
+                });
+            }
         }
+
+        features
+
+    } else {
+        println!("$PGCON is not set or env file does not exist.");
+        std::process::exit(1);
     }
-    features
 }
 
 // Goes over interesects
@@ -164,7 +171,6 @@ fn to_geojson(targets: Vec<geo::Polygon>) {
     let geojson_string = geojson.to_string();
     let result = fs::write("./src/output.geojson", geojson_string);
     match result {
-        // Msg if succesful
         Ok(_) => println!("File succesfully saved"),
         Err(e) => println!("{:?}", e),
     }
