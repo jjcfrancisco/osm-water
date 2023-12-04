@@ -2,7 +2,7 @@ use geo::{*};
 use shapefile;
 use shapefile::PolygonRing::{Outer, Inner};
 use postgres::{Client, NoTls};
-use std::env;
+use std::{env, fs};
 use wkt;
 use std::fs::File;
 use std::io::prelude::*;
@@ -145,18 +145,28 @@ fn to_geojson(targets: Vec<geo::Polygon>) {
         });
         
         let geojson_string = geojson.to_string();
-        println!("{:?}", geojson_string)
+        let result = fs::write("./src/output.geojson", geojson_string);
+        match result {
+            Ok(_) => println!("File succesfully saved."),
+            Err(e) => println!("{:?}", e),
+        }
 
     }
 }
 
 fn main() {
 
-    let query = read_file("./query.sql");
-    let regions = postgis_data(query);
-    let filepath = "./shp/water_polygons.shp";
-    let polygons = read_shapefile(filepath);
-    let targets = intersects(polygons, regions);
-    to_geojson(targets)
-
+    let root = Path::new("./");
+    let result = env::set_current_dir(&root);
+    if result.is_err() {
+        println!("Error setting current directory.");
+        std::process::exit(1);
+    } else {
+        let query = read_file("./src/query.sql");
+        let regions = postgis_data(query);
+        let filepath = "./src/shp/water_polygons.shp";
+        let polygons = read_shapefile(filepath);
+        let targets = intersects(polygons, regions);
+        to_geojson(targets)
+    }
 }
