@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-fn to_geo_poly(polygon: shapefile::Polygon) -> geo::Polygon {
+fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
     let mut x: f64;
     let mut y: f64;
@@ -116,7 +116,7 @@ fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
             if shape.is_ok() {
                 // Polygon shape only, record ignored
                 let (polygon, _) = shape.unwrap();
-                let poly = to_geo_poly(polygon);
+                let poly = to_geo(polygon);
                 polys.push(poly); 
             }
         }
@@ -128,30 +128,43 @@ fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
 // To GeoJSON
 fn to_geojson(targets: Vec<geo::Polygon>) {
 
+    let mut features:Vec<geojson::Feature> = Vec::new();
+
     for target in targets.iter() {
         let geometry = geojson::Geometry::new(geojson::Value::from(target));
         let mut properties = geojson::JsonObject::new();
         properties.insert(
             String::from("name"),
-            geojson::JsonValue::from("Firestone Grill"),
+            geojson::JsonValue::Null,
         );
 
-        let geojson = geojson::GeoJson::Feature(geojson::Feature {
+        let feature = geojson::Feature {
             bbox: None,
             geometry: Some(geometry),
             id: None,
             properties: Some(properties),
-            foreign_members: None,
-        });
-        
-        let geojson_string = geojson.to_string();
-        let result = fs::write("./src/output.geojson", geojson_string);
-        match result {
-            Ok(_) => println!("File succesfully saved."),
-            Err(e) => println!("{:?}", e),
-        }
+            foreign_members: None
+        };
+
+        features.push(feature)
 
     }
+
+    let feature_collection = geojson::FeatureCollection {
+        bbox: None,
+        features,
+        foreign_members: None,
+    };
+
+    let geojson = geojson::GeoJson::from(feature_collection);
+    let geojson_string = geojson.to_string();
+    let result = fs::write("./src/output.geojson", geojson_string);
+    match result {
+        // Msg if succesful
+        Ok(_) => println!("File succesfully saved"),
+        Err(e) => println!("{:?}", e),
+    }
+
 }
 
 fn main() {
@@ -169,4 +182,5 @@ fn main() {
         let targets = intersects(polygons, regions);
         to_geojson(targets)
     }
+
 }
