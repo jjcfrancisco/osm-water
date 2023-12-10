@@ -1,3 +1,4 @@
+use clap::Parser;
 use geo::{*};
 use shapefile;
 use postgres::{Client, NoTls};
@@ -6,6 +7,29 @@ use std::{env, fs};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+
+/// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+
+    /// Connection string to a database
+    #[arg(short, long)]
+    uri: String,
+
+    /// SQL statement to pull the target geometries
+    #[arg(short, long)]
+    sql: String,
+
+    /// A path to the OSM water shapefile
+    #[arg(short, long)]
+    water: String,
+
+    /// A path for the output GeoJSON file
+    #[arg(short, long)]
+    output: String,
+
+}
 
 fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
@@ -53,31 +77,24 @@ struct Feature {
     geom: geo::Polygon,
 }
 
-fn postgis_data(query: String) -> Vec<Feature> {
+fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
     
-    let result = env::var("PGCON");
-    if result.is_ok() {
-        let pgcon = result.unwrap(); 
-        let mut client = Client::connect(&pgcon, NoTls).unwrap();
-        let mut features: Vec<Feature> = Vec::new();
-        for row in &client.query(&query, &[]).unwrap() {
-            let wkt_geom: String = row.get("geom");
-            let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
-            if result.is_ok() {
-                let geom: geo::Polygon = result.unwrap();
-                features.push(Feature{
-                    name: row.get("project_name"),
-                    geom,
-                });
-            }
+    let mut client = Client::connect(&pgcon, NoTls).unwrap();
+    let mut features: Vec<Feature> = Vec::new();
+    for row in &client.query(&query, &[]).unwrap() {
+        let wkt_geom: String = row.get("geom");
+        let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
+        if result.is_ok() {
+            let geom: geo::Polygon = result.unwrap();
+            features.push(Feature{
+                name: row.get("project_name"),
+                geom,
+            });
         }
-
-        features
-
-    } else {
-        println!("$PGCON is not set or env file does not exist.");
-        std::process::exit(1);
     }
+
+    features
+
 }
 
 // Goes over interesects
@@ -137,7 +154,7 @@ fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
 }
 
 // To GeoJSON
-fn to_geojson(targets: Vec<geo::Polygon>) {
+fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
 
     let mut features:Vec<geojson::Feature> = Vec::new();
 
@@ -169,7 +186,7 @@ fn to_geojson(targets: Vec<geo::Polygon>) {
 
     let geojson = geojson::GeoJson::from(feature_collection);
     let geojson_string = geojson.to_string();
-    let result = fs::write("./src/output.geojson", geojson_string);
+    let result = fs::write(output_path, geojson_string);
     match result {
         Ok(_) => println!("File succesfully saved"),
         Err(e) => println!("{:?}", e),
@@ -179,18 +196,26 @@ fn to_geojson(targets: Vec<geo::Polygon>) {
 
 fn main() {
 
+    let args = Cli::parse();
+
+    let uri:String = args.uri;
+    // In the future sql can be either a string statement or path
+    // to a more complex SQL statement
+    let sql_path:String = args.sql;
+    let water_path:String = args.water;
+    let output_path:String = args.output;
+
     let root = Path::new("./");
     let result = env::set_current_dir(&root);
     if result.is_err() {
         println!("Error setting current directory.");
         std::process::exit(1);
     } else {
-        let query = read_file("./src/query.sql");
-        let regions = postgis_data(query);
-        let filepath = "./src/shp/water_polygons.shp";
-        let polygons = read_shapefile(filepath);
+        let query = read_file(&sql_path);
+        let regions = postgis_data(&uri, query);
+        let polygons = read_shapefile(&water_path);
         let targets = intersects(polygons, regions);
-        to_geojson(targets)
+        to_geojson(&output_path, targets)
     }
 
 }
