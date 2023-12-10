@@ -14,16 +14,16 @@ use std::path::Path;
 struct Cli {
 
     /// Connection string to a database
-    #[arg(short, long)]
+    #[arg(long)]
     uri: String,
 
     /// SQL statement to pull the target geometries
-    #[arg(short, long)]
+    #[arg(long)]
     sql: String,
 
     /// A path to the OSM water shapefile
-    #[arg(short, long)]
-    water: String,
+    #[arg(long)]
+    shp: String,
 
     /// A path for the output GeoJSON file
     #[arg(short, long)]
@@ -73,7 +73,7 @@ fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
 #[derive(Debug)]
 struct Feature {
-    name: String,
+    //name: String,
     geom: geo::Polygon,
 }
 
@@ -87,7 +87,7 @@ fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
         if result.is_ok() {
             let geom: geo::Polygon = result.unwrap();
             features.push(Feature{
-                name: row.get("project_name"),
+                //name: row.get("project_name"),
                 geom,
             });
         }
@@ -188,7 +188,7 @@ fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
     let geojson_string = geojson.to_string();
     let result = fs::write(output_path, geojson_string);
     match result {
-        Ok(_) => println!("File succesfully saved"),
+        Ok(_) => println!("\n GeoJSON succesfully saved.\n"),
         Err(e) => println!("{:?}", e),
     }
 
@@ -202,7 +202,7 @@ fn main() {
     // In the future sql can be either a string statement or path
     // to a more complex SQL statement
     let sql_path:String = args.sql;
-    let water_path:String = args.water;
+    let water_path:String = args.shp;
     let output_path:String = args.output;
 
     let root = Path::new("./");

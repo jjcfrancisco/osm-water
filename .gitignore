@@ -18,3 +18,4 @@ Cargo.lock
 src/shp
 .envrc
 query.sql
+README.local.md
