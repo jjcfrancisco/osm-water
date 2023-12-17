@@ -3,7 +3,7 @@ osm-wate.rs allows you to get the resulting polygons from the intersection of OS
 In time, this will be a nice looking README page.
 
 ## Install
-To intall `osm-wate.rs` you must have `cargo` install. Then simply `cargo install osm-waters`. To install locally use `cargo install --path .`
+To intall `osm-wate.rs` you must have `cargo` installed. Then simply `cargo install osm-waters`. To install locally use `cargo install --path .`
 
 ## Usage
 Currently, all flags are compulsory. This may change in future versions. Below is an example of how to use `osm-wate.rs`:
