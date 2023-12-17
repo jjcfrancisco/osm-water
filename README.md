@@ -23,6 +23,7 @@ osm-waters --uri postgresql://user:password@localhost:5432/my_db --sql query.sql
 * Switch shapefile reader to [GeoZero Shapefile](https://github.com/georust/geozero/tree/main/geozero-shp).
 * A flag to choose the name of the geometry column from a database - currently this must be `geom` column.
 * Better error handling.
+* Do unit tests.
 * Args need parsing/validation.
 * Allow input sources other than PostGIS i.e GeoJSON or Shapefile. Although this may be irrelevant as in the majority of cases the user will have a shapefile from OSM water.
 * Allow outputs other than GeoJSON, this may be `geoparquet`, `duckdb` or `shapefile`.
