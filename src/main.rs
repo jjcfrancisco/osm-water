@@ -10,7 +10,7 @@ use std::path::Path;
 
 /// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author = "jjcfrancisco", version = "0.1.0", about, long_about = None)]
 struct Cli {
 
     /// Connection string to a database
@@ -31,6 +31,7 @@ struct Cli {
 
 }
 
+// Geometries are transformed to GeoRust: Geo
 fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
     let mut x: f64;
@@ -71,12 +72,11 @@ fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
 }
 
-#[derive(Debug)]
 struct Feature {
-    //name: String,
     geom: geo::Polygon,
 }
 
+// Reads the geometries from a database
 fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
     
     let mut client = Client::connect(&pgcon, NoTls).unwrap();
@@ -87,7 +87,6 @@ fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
         if result.is_ok() {
             let geom: geo::Polygon = result.unwrap();
             features.push(Feature{
-                //name: row.get("project_name"),
                 geom,
             });
         }
@@ -97,7 +96,7 @@ fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
 
 }
 
-// Goes over interesects
+// Iterates over interesects
 fn intersects(polys:Vec<geo::Polygon>, targets:Vec<Feature>) -> Vec<geo::Polygon> {
 
     let mut intersects:Vec<geo::Polygon> = Vec::new();
@@ -132,7 +131,7 @@ fn read_file(filepath: &str) -> String {
     }
 }
 
-// Read shapefile
+// Reads shapefile
 fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
 
     let mut polys:Vec<geo::Polygon> = Vec::new();
@@ -153,7 +152,7 @@ fn read_shapefile(filepath: &str) -> Vec<geo::Polygon> {
 
 }
 
-// To GeoJSON
+// To GeoJSON object
 fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
 
     let mut features:Vec<geojson::Feature> = Vec::new();
