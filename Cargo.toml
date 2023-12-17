@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 homepage = "jjcfrancis.co"
 readme = "README.md"
 repository = "https://github.com/jjcfrancisco/osm-waters"
+description = "Obtain the necessary OSM water bodies for your project. It finds the water polygons that intersect your chosen geometries and outputs the results into GeoJSON."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
