@@ -7,27 +7,29 @@ use std::{env, fs};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::ffi::OsStr;
+use geojson::GeoJson;
 
 /// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
 #[derive(Parser, Debug)]
 #[command(author = "jjcfrancisco", version = "0.1.1", about, long_about = None)]
 struct Cli {
 
-    /// Connection string to a database
-    #[arg(long)]
-    uri: String,
+    ///// Connection string to a database if using SQL as target
+    //#[arg(long)]
+    //uri: Option<String>,
 
-    /// SQL statement to pull the target geometries
+    /// Filepath to GeoJSON, Shapefile or SQL
     #[arg(long)]
-    sql: String,
+    target: String,
 
-    /// A path to the OSM water shapefile
-    #[arg(long)]
-    shp: String,
+    ///// Filepath to OSM water shapefile
+    //#[arg(long)]
+    //input: String,
 
-    /// A path for the output GeoJSON file
-    #[arg(short, long)]
-    output: String,
+    ///// Filepath to save output file
+    //#[arg(short, long)]
+    //output: String,
 
 }
 
@@ -193,28 +195,99 @@ fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
 
 }
 
+fn open_sql(filepath: &str) -> String {
+
+    let data = fs::read_to_string(filepath);
+    if data.is_ok() {
+        return data.unwrap()
+    } else {
+        eprintln!("Error when reading sql file.");
+        std::process::exit(1)
+    }
+
+}
+
+fn open_geojson(filepath: &str) -> GeoJson {
+
+    let mut file = File::open(&filepath).unwrap();
+    let mut file_contents = String::new();
+    let _ = file.read_to_string(&mut file_contents);
+
+    let data = file_contents.parse::<GeoJson>();
+
+    if data.is_ok() {
+        return data.unwrap()
+    } else {
+        eprintln!("Error when reading geojson file.");
+            std::process::exit(1)
+    }
+
+}
+
+enum File_type<GeoJson, String> {
+    GeoJSON(GeoJson),
+    Sql(String),
+}
+
+fn open(filepath: &str) -> File_type<GeoJson, String> {
+
+    // Allowed file extensions
+    let allowed = vec!["geojson", "sql"];
+
+    // Finds file extension provided by user
+    let file_ext = Path::new(filepath)
+        .extension()
+        .and_then(OsStr::to_str);
+
+    // Opens file depending on file type
+    if file_ext.is_some() {
+        let is_allowed = allowed.iter()
+                                .any(|&x| file_ext.unwrap()
+                                                  .to_lowercase() == x);
+
+        if is_allowed && file_ext.unwrap() == "geojson" {
+            File_type::GeoJSON(open_geojson(filepath))
+        } else if is_allowed && file_ext.unwrap() == "sql" {
+            File_type::Sql(open_sql(filepath))
+        } else {
+            eprintln!("File type provided not allowed.");
+            std::process::exit(1)
+        }
+        
+    } else {
+        eprintln!("Error when using the provided file path.");
+        std::process::exit(1)
+    }
+
+}
+
 fn main() {
 
     let args = Cli::parse();
+    let target:String = args.target; // parse
+    
+    //let uri:Option<String> = args.uri; // parse
+    //let input:String = args.input; // parse
+    //let output:String = args.output; // parse
 
-    let uri:String = args.uri;
-    // In the future sql can be either a string statement or path
-    // to a more complex SQL statement
-    let sql_path:String = args.sql;
-    let water_path:String = args.shp;
-    let output_path:String = args.output;
-
-    let root = Path::new("./");
-    let result = env::set_current_dir(&root);
+    // Set path to current dir
+    let result = env::set_current_dir(Path::new("./"));
     if result.is_err() {
         println!("Error setting current directory.");
         std::process::exit(1);
-    } else {
-        let query = read_file(&sql_path);
-        let regions = postgis_data(&uri, query);
-        let polygons = read_shapefile(&water_path);
-        let targets = intersects(polygons, regions);
-        to_geojson(&output_path, targets)
     }
+
+    let content = open(&target);
+    match content {
+        File_type::GeoJSON(g) => println!("{:?}", g),
+        File_type::Sql(s) => println!("{:?}", s),
+    }
+
+
+    //let query = read_file(&sql_path);
+    //let regions = postgis_data(&uri, query);
+    //let polygons = read_shapefile(&water_path);
+    //let targets = intersects(polygons, regions);
+    //to_geojson(&output_path, targets)
 
 }
