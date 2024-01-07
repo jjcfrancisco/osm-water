@@ -1,14 +1,13 @@
 use clap::Parser;
 use geo::{*};
-use shapefile;
-use postgres::{Client, NoTls};
-use wkt;
+use shapefile::Polygon;
 use std::{env, fs};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::ffi::OsStr;
-use geojson::GeoJson;
+use geojson::{GeoJson, quick_collection};
+use geo_types::GeometryCollection;
 
 /// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
 #[derive(Parser, Debug)]
@@ -23,53 +22,41 @@ struct Cli {
     #[arg(long)]
     target: String,
 
-    ///// Filepath to OSM water shapefile
-    //#[arg(long)]
-    //input: String,
+    /// Filepath to OSM water shapefile
+    #[arg(long)]
+    input: String,
 
-    ///// Filepath to save output file
-    //#[arg(short, long)]
-    //output: String,
+    /// Filepath to save output file
+    #[arg(short, long)]
+    output: String,
 
 }
 
 // Geometries are transformed to GeoRust: Geo
 fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
-    let mut x: f64;
-    let mut y: f64;
     let mut outer_placeholder: Vec<(f64,f64)> = Vec::new();
-    let mut inner_placeholder: Vec<geo::LineString> = Vec::new();
+    let mut inner_rings: Vec<geo::LineString> = Vec::new();
 
     for ring_type in polygon.rings() {
         match ring_type {
-            shapefile::PolygonRing::Outer(o) => {
-                //Gather all outer rings
-                for point in o {
-                    x = point.x;
-                    y = point.y;
-                    outer_placeholder.push((x,y));
-                }
-            },
-            shapefile::PolygonRing::Inner(i) => {
-                //Gather all inner rings
-                let mut single_inner_placeholder: Vec<(f64,f64)> = Vec::new();
-                for point in i {
-                    x = point.x;
-                    y = point.y;
-                    single_inner_placeholder.push((x,y));
-                }
-                let ls = geo::LineString::from(single_inner_placeholder);
-                inner_placeholder.push(ls);
+            //Gather all outer rings
+            shapefile::PolygonRing::Outer(out) => out.iter().for_each(|p| {outer_placeholder.push((p.x,p.y))}),
+            //Gather all inner rings
+            shapefile::PolygonRing::Inner(inn) => {
+                let mut inner_ring: Vec<(f64,f64)> = Vec::new();
+                inn.iter().for_each(|p| {inner_ring.push((p.x,p.y))});
+                let ls = geo::LineString::from(inner_ring);
+                inner_rings.push(ls);
             },
         }
     }
     
-    let ext_ring = geo::LineString::from(outer_placeholder);
-    if inner_placeholder.is_empty() {
-        geo::Polygon::new(ext_ring, vec![])
+    let outer_ring = geo::LineString::from(outer_placeholder);
+    if inner_rings.is_empty() {
+        geo::Polygon::new(outer_ring, vec![])
     } else {
-        geo::Polygon::new(ext_ring, inner_placeholder)
+        geo::Polygon::new(outer_ring, inner_rings)
     }
 
 }
@@ -79,58 +66,61 @@ struct Feature {
 }
 
 // Reads the geometries from a database
-fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
-    
-    let mut client = Client::connect(&pgcon, NoTls).unwrap();
-    let mut features: Vec<Feature> = Vec::new();
-    for row in &client.query(&query, &[]).unwrap() {
-        let wkt_geom: String = row.get("geom");
-        let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
-        if result.is_ok() {
-            let geom: geo::Polygon = result.unwrap();
-            features.push(Feature{
-                geom,
-            });
-        }
-    }
-
-    features
-
-}
+//fn postgis_data(pgcon: &str, query: String) -> Vec<Feature> {
+//    
+//    let mut client = Client::connect(&pgcon, NoTls).unwrap();
+//    let mut features: Vec<Feature> = Vec::new();
+//    for row in &client.query(&query, &[]).unwrap() {
+//        let wkt_geom: String = row.get("geom");
+//        let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
+//        if result.is_ok() {
+//            let geom: geo::Polygon = result.unwrap();
+//            features.push(Feature{
+//                geom,
+//            });
+//        }
+//    }
+//
+//    features
+//
+//}
 
 // Iterates over interesects
-fn intersects(polys:Vec<geo::Polygon>, targets:Vec<Feature>) -> Vec<geo::Polygon> {
+fn intersects(water_polys:Vec<geo::Polygon>, target_polys:GeometryCollection) -> Vec<geo::Polygon> {
 
-    let mut intersects:Vec<geo::Polygon> = Vec::new();
-    for poly in polys.iter() {
-        for target in targets.iter() {
-            if poly.intersects(&target.geom) {
-               intersects.push(poly.to_owned()); 
+    let mut result:Vec<geo::Polygon> = Vec::new();
+
+    for water_poly in water_polys.iter() {
+        for target_poly in &target_polys {
+
+
+
+            if let Ok(p) = geo::Polygon::try_from(target_poly.to_owned()) {
+                if water_poly.intersects(&p) {
+                    result.push(water_poly.clone());
+                }
+            } else if let Ok(mp) = geo::MultiPolygon::try_from(target_poly.to_owned()) {
+                for p in mp.iter() {
+                    if water_poly.intersects(p) {
+                        result.push(water_poly.clone());
+                    }
+                }
             }
+
+
+
+
+            //let target_poly = Polygon::try_from(target_poly.to_owned());
+            //if water_poly.intersects(&target_poly.unwrap()) {
+            //   intersects.push(water_poly.to_owned()); 
+            //}
         }
     }
 
     // Removes duplicates
-    intersects.dedup();
+    result.dedup();
+    result
 
-    intersects
-
-}
-
-// Reads file
-fn read_file(filepath: &str) -> String {
-
-    let path = Path::new(filepath);
-    let mut file = match File::open(&path) {
-        Err(why) => panic!("couldn't open: {}", why),
-        Ok(file) => file,
-    };
-
-    let mut s = String::new();
-    match file.read_to_string(&mut s) {
-        Err(why) => panic!("couldn't read: {}", why),
-        Ok(_) => s,
-    }
 }
 
 // Reads shapefile
@@ -195,11 +185,16 @@ fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
 
 }
 
-fn open_sql(filepath: &str) -> String {
+fn open_sql(filepath: &str) -> GeometryCollection<f64> {
 
     let data = fs::read_to_string(filepath);
+
+
     if data.is_ok() {
-        return data.unwrap()
+        // Here query database and get geoms
+        let polygon = geo::Polygon::new(LineString::from(vec![(0., 0.), (1., 1.), (1., 0.), (0., 0.)]), vec![]);
+        let gc = GeometryCollection::from_iter(vec![polygon.to_owned(), polygon.to_owned()]);
+        return gc
     } else {
         eprintln!("Error when reading sql file.");
         std::process::exit(1)
@@ -207,29 +202,24 @@ fn open_sql(filepath: &str) -> String {
 
 }
 
-fn open_geojson(filepath: &str) -> GeoJson {
+fn open_geojson(filepath: &str) -> GeometryCollection<f64> {
 
     let mut file = File::open(&filepath).unwrap();
     let mut file_contents = String::new();
     let _ = file.read_to_string(&mut file_contents);
 
     let data = file_contents.parse::<GeoJson>();
-
-    if data.is_ok() {
-        return data.unwrap()
+    
+    if let Ok(d) = data {
+        return quick_collection(&d).unwrap()
     } else {
         eprintln!("Error when reading geojson file.");
-            std::process::exit(1)
+        std::process::exit(1);
     }
 
 }
 
-enum File_type<GeoJson, String> {
-    GeoJSON(GeoJson),
-    Sql(String),
-}
-
-fn open(filepath: &str) -> File_type<GeoJson, String> {
+fn open(filepath: &str) -> GeometryCollection {
 
     // Allowed file extensions
     let allowed = vec!["geojson", "sql"];
@@ -246,9 +236,9 @@ fn open(filepath: &str) -> File_type<GeoJson, String> {
                                                   .to_lowercase() == x);
 
         if is_allowed && file_ext.unwrap() == "geojson" {
-            File_type::GeoJSON(open_geojson(filepath))
+            open_geojson(filepath)
         } else if is_allowed && file_ext.unwrap() == "sql" {
-            File_type::Sql(open_sql(filepath))
+            open_sql(filepath)
         } else {
             eprintln!("File type provided not allowed.");
             std::process::exit(1)
@@ -265,10 +255,10 @@ fn main() {
 
     let args = Cli::parse();
     let target:String = args.target; // parse
+    let input:String = args.input; // parse
+    let output:String = args.output; // parse
     
     //let uri:Option<String> = args.uri; // parse
-    //let input:String = args.input; // parse
-    //let output:String = args.output; // parse
 
     // Set path to current dir
     let result = env::set_current_dir(Path::new("./"));
@@ -277,17 +267,13 @@ fn main() {
         std::process::exit(1);
     }
 
-    let content = open(&target);
-    match content {
-        File_type::GeoJSON(g) => println!("{:?}", g),
-        File_type::Sql(s) => println!("{:?}", s),
-    }
+    let target_geom = open(&target);
+    let osm_water_polys = read_shapefile(&input);
+    let result = intersects(osm_water_polys, target_geom);
+    to_geojson(&output, result)
 
-
+    //let targets = intersects(osm_water_polys, target_geom);
     //let query = read_file(&sql_path);
     //let regions = postgis_data(&uri, query);
-    //let polygons = read_shapefile(&water_path);
-    //let targets = intersects(polygons, regions);
-    //to_geojson(&output_path, targets)
 
 }
