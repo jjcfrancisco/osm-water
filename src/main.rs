@@ -62,32 +62,23 @@ fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
 }
 
-struct Feature {
-    geom: geo::Polygon,
-}
-
 // Reads the geometries from a database
 fn postgis_data(pgcon: Option<String>, query: String) -> GeometryCollection {
 
     if pgcon.is_some() {
 
         let mut client = Client::connect(&pgcon.unwrap(), NoTls).unwrap();
-        let mut features: Vec<Feature> = Vec::new();
+        let mut features: Vec<geo::Geometry> = Vec::new();
         for row in &client.query(&query, &[]).unwrap() {
             let wkt_geom: String = row.get("geom");
             let result =  wkt::TryFromWkt::try_from_wkt_str(&wkt_geom);
             if result.is_ok() {
-                let geom: geo::Polygon = result.unwrap();
-                features.push(Feature{
-                    geom,
-                });
+                let geom: geo::Geometry = result.unwrap();
+                features.push(geom);
             }
         }
 
-        //features
-        //Dummy text below
-        let polygon = geo::Polygon::new(LineString::from(vec![(0., 0.), (1., 1.), (1., 0.), (0., 0.)]), vec![]);
-        let gc = GeometryCollection::from_iter(vec![polygon.to_owned(), polygon.to_owned()]);
+        let gc = GeometryCollection::new_from(features);
         return gc
 
     } else {
@@ -191,7 +182,6 @@ fn open_sql(filepath: &str, uri: Option<String>) -> GeometryCollection<f64> {
 
     let query = fs::read_to_string(filepath);
 
-
     if query.is_ok() {
         postgis_data(uri, query.unwrap())
     } else {
@@ -265,6 +255,10 @@ fn open(filepath: &str, uri: Option<String>) -> GeometryCollection {
         if is_allowed && file_ext.unwrap() == "geojson" {
             open_geojson(filepath)
         } else if is_allowed && file_ext.unwrap() == "sql" {
+            if uri.is_none() {
+                eprintln!("\nA valid uri must be provided.");
+                std::process::exit(1)
+            };
             open_sql(filepath, uri)
         } else {
             eprintln!("\nFile type provided not allowed.");
