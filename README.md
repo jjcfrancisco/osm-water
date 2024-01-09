@@ -1,27 +1,38 @@
 # osm-wate.rs
 osm-wate.rs allows you to get the resulting polygons from the intersection of OSM water bodies and your chosen geometries.
-In time, this will be a nice looking README page.
 
 ## Install
-To intall `osm-wate.rs` you must have `cargo` installed. Then simply `cargo install osm-waters`. To install locally use `cargo install --path .`
+To install osm-wate.rs:
+```bash
+cargo install osm-waters
+
+# Or if building from source:
+cargo install --path .
+```
+> Cargo must be installed.
 
 ## Usage
-Currently, all flags are compulsory. This may change in future versions. Below is an example of how to use `osm-wate.rs`:
+Below are some examples on how to use osm-wate.rs:
 
 ```bash
-osm-waters --uri postgresql://user:password@localhost:5432/my_db --sql query.sql --shp og-water-polys.shp --output intersected-water-polys.geojson
+osm-waters --target ./query.sql --uri postgresql://postgres:mypassword@localhost:5432/mydatabase --input ./water_polygons.shp --output intersecting_geometries.geojson
+```
+
+```bash
+--target ./example.geojson --input ~/water_polygons.shp --output intersecting_geometries.geojson
 ```
 
 #### Flags
-* The `--uri` requires valid credentials to your database i.e. `postgres://postgres:mypassword@localhost:5432/my_db`.
-* The `--sql` query takes a valid sql that used to obtain the geometries from a given database i.e. `SELECT * FROM my_geometries;`
-* The `--shp` flag takes the OSM water polygons from [OSM water polygons](https://osmdata.openstreetmap.de/data/water-polygons.html)
-* The `--output` flag is used to set the path of where the resulting `GeoJSON` file will be saved.
+* The `--target` takes a GeoJSON or SQL file that queries geometries from a database. See the */tests* directory for examples.
+* The `--uri` requires credentials to your database. This is an optional flag but compulsory if using a database as target.
+* The `--input` takes the OSM water polygons from [OSM water polygons](https://osmdata.openstreetmap.de/data/water-polygons.html). Currently, this file **must** be a shapefile.
+* The `--output` is used to set the path of where the resulting `GeoJSON` file will be saved.
 
 
 # Future improvements
 * A flag to choose the name of the geometry column from a database - currently this must be `geom` column.
-* Improve error handling when wrong file path is introduced.
+* Improve error handling when a wrong file path is passed.
 * Do unit tests.
-* Args need parsing/validation.
+* Args need better parsing/validation.
+* Allow the use of a database as input.
 * Allow outputs other than GeoJSON, this may be `geoparquet`, `duckdb` or `shapefile`.
