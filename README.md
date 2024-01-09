@@ -14,12 +14,12 @@ cargo install --path .
 ## Usage
 Below are some examples on how to use osm-wate.rs:
 
-Using a geojson as input:
+#### GeoJSON example
 ```bash
 --target ./example.geojson --input ~/water_polygons.shp --output intersecting_geometries.geojson
 ```
 
-Using a database as input:
+#### Database example
 ```bash
 osm-waters --target ./query.sql --uri postgresql://postgres:mypassword@localhost:5432/mydatabase --input ./water_polygons.shp --output intersecting_geometries.geojson
 ```
