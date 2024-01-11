@@ -2,7 +2,6 @@ use crate::database::postgis_data;
 use crate::utils::to_geo;
 use geo_types::GeometryCollection;
 use geojson::{quick_collection, GeoJson};
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
@@ -10,8 +9,9 @@ use std::io::prelude::*;
 use std::path::Path;
 
 // Reads shapefile
-pub fn read_shapefile(filepath: &str) -> HashMap<String, geo::Polygon> {
-    let mut polys: HashMap<String, geo::Polygon> = HashMap::new();
+pub fn open_shapefile(filepath: &str) -> GeometryCollection {
+    //let mut polys: HashMap<String, geo::Polygon> = HashMap::new();
+    let mut polys: Vec<geo::Geometry> = Vec::new();
     let reader = shapefile::Reader::from_path(filepath);
     if reader.is_ok() {
         let mut content = reader.unwrap();
@@ -22,15 +22,19 @@ pub fn read_shapefile(filepath: &str) -> HashMap<String, geo::Polygon> {
                 // Polygon shape only, record ignored
                 let (polygon, _) = shape.unwrap();
                 let poly = to_geo(polygon);
-                polys.insert(ind.to_string(), poly);
+                //polys.insert(ind.to_string(), poly);
+                polys.push(poly);
             }
         }
+        return GeometryCollection::new_from(polys)
+    } else {
+        eprintln!("\nError when reading shapefile.");
+        std::process::exit(1)
     }
-    polys
 }
 
 // To GeoJSON object
-pub fn to_geojson(output_path: &str, targets: Vec<geo::Polygon>) {
+pub fn to_geojson(output_path: &str, targets: GeometryCollection) {
     let mut features: Vec<geojson::Feature> = Vec::new();
 
     for target in targets.iter() {
@@ -90,7 +94,7 @@ fn open_geojson(filepath: &str) -> GeometryCollection<f64> {
     }
 }
 
-pub fn open(filepath: &str, uri: Option<String>) -> GeometryCollection {
+pub fn open_target(filepath: &str, uri: Option<String>) -> GeometryCollection {
     // Allowed file extensions
     let allowed = vec!["geojson", "sql"];
 
@@ -105,6 +109,37 @@ pub fn open(filepath: &str, uri: Option<String>) -> GeometryCollection {
 
         if is_allowed && file_ext.unwrap() == "geojson" {
             open_geojson(filepath)
+        } else if is_allowed && file_ext.unwrap() == "sql" {
+            if uri.is_none() {
+                eprintln!("\nA valid uri must be provided.");
+                std::process::exit(1)
+            };
+            open_sql(filepath, uri)
+        } else {
+            eprintln!("\nFile type provided not allowed.");
+            std::process::exit(1)
+        }
+    } else {
+        eprintln!("\nError when using the provided file path.");
+        std::process::exit(1)
+    }
+}
+
+pub fn open_input(filepath: &str, uri: Option<String>) -> GeometryCollection {
+    // Allowed file extensions
+    let allowed = vec!["shp", "sql"];
+
+    // Finds file extension provided by user
+    let file_ext = Path::new(filepath).extension().and_then(OsStr::to_str);
+
+    // Opens file depending on file type
+    if file_ext.is_some() {
+        let is_allowed = allowed
+            .iter()
+            .any(|&x| file_ext.unwrap().to_lowercase() == x);
+
+        if is_allowed && file_ext.unwrap() == "shp" {
+            open_shapefile(&filepath)
         } else if is_allowed && file_ext.unwrap() == "sql" {
             if uri.is_none() {
                 eprintln!("\nA valid uri must be provided.");

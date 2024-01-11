@@ -1,26 +1,25 @@
 use crate::Path;
 use geo::Intersects;
 use geo_types::GeometryCollection;
-use std::collections::HashMap;
 use std::ffi::OsStr;
 
 // Iterates over interesects
 pub fn geom_intersects(
-    water_polys: HashMap<String, geo::Polygon>,
-    target_polys: GeometryCollection,
-) -> Vec<geo::Polygon> {
-    let mut result: Vec<geo::Polygon> = Vec::new();
+    water_geoms: GeometryCollection,
+    target_geoms: GeometryCollection,
+) -> GeometryCollection {
+    let mut result: Vec<geo::Geometry> = Vec::new();
 
-    for (_, water_poly) in &water_polys {
-        for target_poly in &target_polys {
-            if let Ok(p) = geo::Polygon::try_from(target_poly.to_owned()) {
-                if water_poly.intersects(&p) {
-                    result.push(water_poly.to_owned());
+    for water_geom in &water_geoms {
+        for target_geom in &target_geoms {
+            if let Ok(p) = geo::Polygon::try_from(target_geom.to_owned()) {
+                if water_geom.intersects(&p) {
+                    result.push(water_geom.to_owned());
                 }
-            } else if let Ok(mp) = geo::MultiPolygon::try_from(target_poly.to_owned()) {
+            } else if let Ok(mp) = geo::MultiPolygon::try_from(target_geom.to_owned()) {
                 for p in mp {
-                    if water_poly.intersects(&p) {
-                        result.push(water_poly.to_owned());
+                    if water_geom.intersects(&p) {
+                        result.push(water_geom.to_owned());
                     }
                 }
             }
@@ -29,11 +28,11 @@ pub fn geom_intersects(
 
     // Removes duplicates
     result.dedup();
-    result
+    geo::GeometryCollection::new_from(result)
 }
 
 // Geometries are transformed to GeoRust: Geo
-pub fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
+pub fn to_geo(polygon: shapefile::Polygon) -> geo::Geometry {
     let mut outer_placeholder: Vec<(f64, f64)> = Vec::new();
     let mut inner_rings: Vec<geo::LineString> = Vec::new();
 
@@ -55,9 +54,11 @@ pub fn to_geo(polygon: shapefile::Polygon) -> geo::Polygon {
 
     let outer_ring = geo::LineString::from(outer_placeholder);
     if inner_rings.is_empty() {
-        geo::Polygon::new(outer_ring, vec![])
+        let poly = geo::Polygon::new(outer_ring, vec![]);
+        geo::Geometry::from(poly)
     } else {
-        geo::Polygon::new(outer_ring, inner_rings)
+        let poly = geo::Polygon::new(outer_ring, inner_rings);
+        geo::Geometry::from(poly)
     }
 }
 

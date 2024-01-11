@@ -15,11 +15,11 @@ struct Cli {
     uri: Option<String>,
 
     /// Filepath to GeoJSON, Shapefile or SQL
-    #[arg(long)]
+    #[arg(short, long)]
     target: String,
 
     /// Filepath to OSM water shapefile
-    #[arg(long)]
+    #[arg(short, long)]
     input: String,
 
     /// Filepath to save output file
@@ -45,9 +45,9 @@ fn main() {
 
     // Workflow
     if utils::check_provided_output(&output) {
-        let target_geom = io::open(&target, uri);
-        let osm_water_polys = io::read_shapefile(&input);
-        let result = utils::geom_intersects(osm_water_polys, target_geom);
+        let target_geom = io::open_target(&target, uri.clone());
+        let water_geom = io::open_input(&input, uri.clone());
+        let result = utils::geom_intersects(water_geom, target_geom);
         io::to_geojson(&output, result)
     }
 }
