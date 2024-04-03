@@ -3,7 +3,6 @@ use anyhow::Result;
 use core::panic;
 use geo_types::GeometryCollection;
 use geojson::{quick_collection, GeoJson};
-use reqwest::header;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::copy;
