@@ -43,3 +43,4 @@ osm-waters --target ./example.geojson --output intersecting_geometries.geojson -
 * Improve error handling.
 * Args need better parsing/validation.
 * Allow outputs other than GeoJSON, this may be `geoparquet`, `duckdb` or `shapefile`.
+* Get `osm-waters` to Homebrew.
