@@ -13,6 +13,7 @@ description = "Obtain the necessary OSM water bodies for your project. It finds 
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4", features = ["derive"] }
+ctrlc = "3.4.4"
 geo = "0.27.0"
 geo-types = "0.7.12"
 geojson = "0.24.1"

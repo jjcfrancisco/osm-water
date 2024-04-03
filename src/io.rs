@@ -1,17 +1,28 @@
-use crate::utils::to_geo;
+use crate::geo::to_geo;
 use anyhow::Result;
 use core::panic;
 use geo_types::GeometryCollection;
 use geojson::{quick_collection, GeoJson};
 use std::ffi::OsStr;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::{fs::File, io::copy};
+use std::fs::File;
+use std::io::copy;
 use walkdir::WalkDir;
 use zip_extensions::*;
+use std::io::prelude::*;
+
+// Cleans up files
+pub fn cleanup(srid: &str) -> Result<()> {
+    let current_path = std::env::current_dir()?;
+    let dir = current_path.join(format!("water-polygons-split-{}", srid));
+    let _ = std::fs::remove_dir_all(dir);
+    let file = current_path.join(format!("water-polygons-split-{}.zip", srid));
+    let _ = std::fs::remove_file(file);
+    Ok(())
+}
 
 // Deals with download, unzip an read file
-pub fn download_unzip_read(srid: Option<String>) -> Result<GeometryCollection> {
+pub fn download_unzip_read(srid: &str) -> Result<GeometryCollection> {
     let mut download_path = download_file(srid)?;
     unzip_file(&download_path)?;
     download_path.set_extension("");
@@ -55,26 +66,19 @@ fn unzip_file(filepath: &PathBuf) -> Result<PathBuf> {
 }
 
 // Downloads OSM water
-fn download_file(srid: Option<String>) -> Result<PathBuf> {
-    let mut default_srid = "4326";
-    let default_url = "https://osmdata.openstreetmap.de/download/water-polygons-split-4326.zip";
-    let url = match srid {
-        Some(s) => {
-            if s == "3857" {
-                default_srid = "3857";
-                "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip"
-            } else {
-                default_url
-            }
-        }
-        None => default_url,
+fn download_file(mut srid: &str) -> Result<PathBuf> {
+    let url = if srid == "3857" {
+        srid = "3857";
+        "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip"
+    } else {
+        "https://osmdata.openstreetmap.de/download/water-polygons-split-4326.zip"
     };
 
     // Send an HTTP GET request to the URL
     let mut response = reqwest::blocking::get(url)?;
 
     // Create a new file to write the downloaded image to
-    let filename = format!("water-polygons-split-{}.zip", default_srid);
+    let filename = format!("water-polygons-split-{}.zip", srid);
     let current_path = std::env::current_dir()?;
     let fullpath = current_path.join(filename);
     let mut dest = File::create(&fullpath)?;
