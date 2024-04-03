@@ -11,11 +11,15 @@ description = "Obtain the necessary OSM water bodies for your project. It finds 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.81"
 clap = { version = "4", features = ["derive"] }
+ctrlc = "3.4.4"
 geo = "0.27.0"
 geo-types = "0.7.12"
 geojson = "0.24.1"
-postgres = "0.19.7"
+reqwest = { version = "0.12.2", features = ["blocking"] }
 serde_json = "1.0.1"
 shapefile = "0.5.0"
-wkt = "0.10.3"
+tempfile = "3.10.1"
+walkdir = "2.5.0"
+zip-extensions = "0.6.2"

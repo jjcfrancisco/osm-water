@@ -1,5 +1,5 @@
 # osm-wate.rs
-osm-wate.rs allows you to get the resulting polygons from the intersection of OSM water bodies and your chosen geometries.
+`osm-waters` allows you to get the resulting polygons from the intersection of OSM water bodies and your chosen geometries.
 
 ## Install
 To install osm-wate.rs:
@@ -9,32 +9,37 @@ cargo install osm-waters
 # Or if building from source:
 cargo install --path .
 ```
-> Cargo must be installed.
+> Go [here](https://doc.rust-lang.org/cargo/getting-started/installation.html) to install Cargo.
 
 ## Usage
-Below are some examples on how to use osm-wate.rs:
+Below are some examples on how to use `osm-waters`:
 
-#### GeoJSON example
+#### Example 1: basic
 ```bash
---target ./example.geojson --input ~/water_polygons.shp --output intersecting_geometries.geojson
+osm-waters --target ./example.geojson --water ~/water_polygons.shp --output intersecting_geometries.geojson
 ```
 
-#### Database example
+#### Example 2: let osm-waters download the OSM water data
 ```bash
-osm-waters --target ./query.sql --uri postgresql://postgres:mypassword@localhost:5432/mydatabase --input ./water_polygons.shp --output intersecting_geometries.geojson
+osm-waters --target ./example.geojson --output intersecting_geometries.geojson --download
+```
+
+#### Example 3: keep the download files
+```bash
+osm-waters --target ./example.geojson --output intersecting_geometries.geojson --download --keep
 ```
 
 #### Flags
-* The `--target` takes a GeoJSON or SQL file that queries geometries from a database. See the */tests* directory for examples.
-* The `--uri` requires credentials to your database. This is an optional flag but compulsory if using a database as target.
-* The `--input` takes the OSM water polygons from [OSM water polygons](https://osmdata.openstreetmap.de/data/water-polygons.html). Currently, this file **must** be a shapefile.
-* The `--output` is used to set the path of where the resulting `GeoJSON` file will be saved.
+* `--target` takes a GeoJSON or SQL file that queries geometries from a database. See the */tests* directory for examples.
+* `--water` takes the OSM water polygons from [OSM water polygons](https://osmdata.openstreetmap.de/data/water-polygons.html). This file **must** be a shapefile.
+* `--output` is used to set the path of where the resulting `GeoJSON` file will be saved.
+* `--download` downloads the OSM water data
+* `--keep` keeps the downloaded data
+* `--srid` is used to choose the coordinate system. The OSM water file provided must be in such such srid. In addition, the output will also be in the chosen srid. Default srid is 4326.
 
 
 # Future improvements
-* A flag to choose the name of the geometry column from a database - currently this must be `geom` column.
-* Improve error handling when a wrong file path is passed.
-* Do unit tests.
+* Reintroduced database option - include choose **geom**.
+* Improve error handling.
 * Args need better parsing/validation.
-* Allow the use of a database as input.
 * Allow outputs other than GeoJSON, this may be `geoparquet`, `duckdb` or `shapefile`.
