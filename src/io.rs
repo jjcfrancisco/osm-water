@@ -202,12 +202,6 @@ pub fn open_input(filepath: &str) -> Result<GeometryCollection> {
 
         if is_allowed && file_ext.unwrap() == "shp" {
             open_shapefile(PathBuf::from(filepath.to_owned()))
-        //} else if is_allowed && file_ext.unwrap() == "sql" {
-        //    if uri.is_none() {
-        //        eprintln!("\nA valid uri must be provided.");
-        //        std::process::exit(1)
-        //    };
-        //    open_sql(filepath, uri)
         } else {
             eprintln!("\nFile type provided not allowed.");
             std::process::exit(1)

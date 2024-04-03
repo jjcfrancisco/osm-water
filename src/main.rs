@@ -2,7 +2,6 @@ use clap::{ArgAction, Parser};
 use io::to_geojson;
 use std::env;
 use std::path::{Path, PathBuf};
-mod database;
 mod geo;
 mod io;
 mod validate;
@@ -22,9 +21,6 @@ struct Cli {
     #[arg(short, long)]
     output: String,
 
-    ///// Connection string to a database if using SQL as target
-    //#[arg(long)]
-    //uri: Option<String>,
     /// Filepath to OSM water shapefile
     #[arg(long)]
     water: Option<String>,
@@ -57,7 +53,6 @@ fn main() {
     let args = Cli::parse();
 
     // args need better parsing
-    //let uri: Option<String> = args.uri;
     let target: String = args.target;
     let water: Option<String> = args.water;
     let output: String = args.output;
