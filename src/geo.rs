@@ -8,6 +8,8 @@ pub fn geom_intersects(
 ) -> Option<GeometryCollection> {
     let mut result: Vec<geo::Geometry> = Vec::new();
 
+    println!("\n Finding intersecting geometries...\n");
+
     for water_geom in &water_geoms {
         for target_geom in &target_geoms {
             if let Ok(p) = geo::Polygon::try_from(target_geom.to_owned()) {

@@ -5,9 +5,8 @@ use std::path::{Path, PathBuf};
 mod geo;
 mod io;
 mod validate;
-use ctrlc;
-
 use crate::io::cleanup;
+use ctrlc;
 
 /// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
 #[derive(Parser, Debug)]
@@ -49,7 +48,6 @@ struct Cli {
 }
 
 fn main() {
-
     let args = Cli::parse();
 
     // args need better parsing

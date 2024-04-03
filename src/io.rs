@@ -3,13 +3,14 @@ use anyhow::Result;
 use core::panic;
 use geo_types::GeometryCollection;
 use geojson::{quick_collection, GeoJson};
+use reqwest::header;
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::copy;
+use std::io::prelude::*;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip_extensions::*;
-use std::io::prelude::*;
 
 // Cleans up files
 pub fn cleanup(srid: &str) -> Result<()> {
@@ -83,6 +84,8 @@ fn download_file(mut srid: &str) -> Result<PathBuf> {
     let fullpath = current_path.join(filename);
     let mut dest = File::create(&fullpath)?;
 
+    println!("\n Downloading OSM waters...\n");
+
     // Copy the contents of the response to the file
     copy(&mut response, &mut dest)?;
 
@@ -141,7 +144,7 @@ pub fn to_geojson(output_path: &str, targets: GeometryCollection) {
     let geojson_string = geojson.to_string();
     let result = std::fs::write(output_path, geojson_string);
     match result {
-        Ok(_) => println!("\nGeoJSON succesfully saved.\n"),
+        Ok(_) => println!("\n GeoJSON succesfully saved.\n"),
         Err(e) => println!("{:?}", e),
     }
 }
