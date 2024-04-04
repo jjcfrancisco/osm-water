@@ -16,17 +16,17 @@ Below are some examples on how to use `osm-waters`:
 
 #### Example 1: basic
 ```bash
-osm-waters --target ./example.geojson --water ~/water_polygons.shp --output intersecting_geometries.geojson
+osm-waters --target my_target.geojson --water water_polygons.shp --output intersecting_geometries.geojson
 ```
 
 #### Example 2: let osm-waters download the OSM water data
 ```bash
-osm-waters --target ./example.geojson --output intersecting_geometries.geojson --download
+osm-waters --target example.geojson --output intersecting_geometries.geojson --download
 ```
 
 #### Example 3: keep the download files
 ```bash
-osm-waters --target ./example.geojson --output intersecting_geometries.geojson --download --keep
+osm-waters --target example.geojson --output intersecting_geometries.geojson --download --keep
 ```
 
 #### Flags
