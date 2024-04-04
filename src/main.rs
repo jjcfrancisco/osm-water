@@ -10,7 +10,7 @@ use ctrlc;
 
 /// Get polygons from OSM water that intersect with the target geometries and output results in GeoJSON.
 #[derive(Parser, Debug)]
-#[command(author = "jjcfrancisco", version = "0.2.1", about, long_about = None)]
+#[command(author = "jjcfrancisco", version = "0.2.2", about, long_about = None)]
 struct Cli {
     /// Filepath to GeoJSON, Shapefile or SQL
     #[arg(long)]
